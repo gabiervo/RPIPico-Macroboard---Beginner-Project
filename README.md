@@ -33,7 +33,7 @@ Now, connect, to a breadboard:
 - One SSD1306 oled screen
 - One LED
   
-Remember to use the correct pins for output (the SCL and SDA pins should use pins that are capable of communicating through an I2C interface, so be mindful of that, to check, use the image below: https://www.14core.com/wp-content/uploads/2022/11/Raspberry-Pi-PICO-Pinout-Diagram.jpeg
+Remember to use the correct pins for output, for example, the SCL and SDA pins should use pins that are capable of communicating through an I2C interface, so be mindful of that, to check, use the image below: https://www.14core.com/wp-content/uploads/2022/11/Raspberry-Pi-PICO-Pinout-Diagram.jpeg
 
 Finally, to check that everything is working, use the *test.py* file, you need to change the pins in the file to resemble your own, so make sure to read through it to understand the basic functionality of CIRCUITPYTHON, though we will cover this in more detail later on when we do an overview of the final program.
 
