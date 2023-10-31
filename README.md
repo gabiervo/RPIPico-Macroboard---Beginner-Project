@@ -26,7 +26,7 @@ Running the code should be as simple as plugging in your components, uploading i
 For this, take a look at the Keycode, Keyboard and Consumer Control libraries from adafruit for examples on how to add your own capabilities.
 
 **Example:**
-```
+``` python3
 #add your shortcut to a button's corresponding actionIndex in the actionList in the specific mode you want it to be in:
 #for example, here's how I would add Copy and Paste to the same button in different modes:
 
