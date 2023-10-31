@@ -1,7 +1,7 @@
 # RPIPico-Macroboard---Beginner-Project
 **This is a simple macroboard made using Raspberry PI Pico and Circuitpython, with a couple of extra components to spice it up, such as:**
 - A programmable ssd1306 oled screen for displaying custom wallpapers and command names
-- Support for RGB lighting (still to come)
+- Powerful default preset with support for various applications
 - Simple and customizable code (made specifically to make adding new buttons/commands relatively simple)
 - Knob control with a rotary encoder
 
@@ -21,20 +21,21 @@ First and foremost, we are going to need:
 - https://docs.circuitpython.org/projects/displayio_ssd1306/en/latest/api.html#adafruit_displayio_ssd1306.SSD1306 (ssd1306 library documentation)
 - https://circuitpython.org/libraries (download of all Circuitpython libraries, they can be found beneath the "lib" folder and need to be in the RPIs own lib folder)
 
-## Getting started (prototyping)
-*Note: this step is completely optional, if you want to jump straight into the final PCB, jump to the Finishing Up section of the project.*
+## Installing and running code
+Running the code should be as simple as plugging in your components, uploading in the correct pins to the program and using it, note, however, that the shortcuts are only a preset to build upon and should be changed if you want more shortcuts.
+For this, take a look at the Keycode, Keyboard and Consumer Control libraries from adafruit for examples on how to add your own capabilities.
 
-First, plug in the RPI into your desktop with a **data and power USB cable**, if you installed and setup the Pi correctly, it should show up as a CIRCUITPY drive, in it there should be a couple of files, the ones that interest us the most, however are *code.py and lib*, code.py will be where the code we run will be stored, and lib will store all of our libraries  and directories. 
-*For more info: https://learn.adafruit.com/welcome-to-circuitpython/the-circuitpy-drive*
+**Example:**
+```
+#add your shortcut to a button's corresponding actionIndex in the actionList in the specific mode you want it to be in:
+#for example, here's how I would add Copy and Paste to the same button in different modes:
 
-Now, connect, to a breadboard:
-- 4 pushbuttons
-- One rotary encoder
-- One SSD1306 oled screen
-- One LED
-  
-Remember to use the correct pins for output, for example, the SCL and SDA pins should use pins that are capable of communicating through an I2C interface, so be mindful of that, to check, use the image below: https://www.14core.com/wp-content/uploads/2022/11/Raspberry-Pi-PICO-Pinout-Diagram.jpeg
+#define the shortcut in actionList
+actionList = [[Keycode.COMMAND, Keycode.C], [Keycode.COMMAND, Keycode.V]]
 
-Finally, to check that everything is working, use the *test.py* file, you need to change the pins in the file to resemble your own, so make sure to read through it to understand the basic functionality of CIRCUITPYTHON, though we will cover this in more detail later on when we do an overview of the final program.
+#or on windows
+actionList = [[Keycode.CONTROL, Keycode.C], [Keycode.CONTROL, Keycode.V]]
 
-**This program should make it so that, whenever you press a button or change the position of the rotary encoder, something appears either in the console or in the OLED screen**
+#define btn and actionIndex in index 0
+button1 = btn(board.GP20, 0)
+```
