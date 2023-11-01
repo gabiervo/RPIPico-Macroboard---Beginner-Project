@@ -1,90 +1,140 @@
-#import circuitpython and python libraries
 import board
 import digitalio
 import usb_hid
 from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 from adafruit_hid.keycode import Keycode
+from adafruit_hid.consumer_control import ConsumerControl
+import adafruit_hid.consumer_control
+from adafruit_hid.consumer_control_code import ConsumerControlCode
 import displayio, busio, adafruit_displayio_ssd1306, terminalio
 from adafruit_display_text import label
+from adafruit_bitmap_font import bitmap_font
+from displayio import Bitmap
 import time
 import asyncio
+import analogio
+import math, rotaryio
 
-#defining your keyboard using the usb_hid library (the variable keyboard is going to be the one we use for most interaction with the actual computer)
+#define the consumer_control object, the library does not work without it
+consumer_control = ConsumerControl(usb_hid.devices)
+
 keyboard = Keyboard(usb_hid.devices)
 keyboard_layout = KeyboardLayoutUS(keyboard)
 
-#defining the i2c display
-SCREEN_WIDTH = 128
-SCREEN_HEIGHT = 64
-
 displayio.release_displays()
 
-#most of this is boilerplate code to get the OLED display setup and ready for use
-#remember, however that you will need to change a couple of things here, let's run through them:
-
-# the sda and scl pins are responsible for communication between the screen and the board, thus, you need to have
-# them wired correctly (note, these are not the only sda and scl pins on a pico, but they are the simplest to remember)
+#setting the pins which will be used for the communication between the board and the screen
 sda, scl = board.GP0, board.GP1
 
+#sets up the protocol the screen uses for communication with the board
+#for more info on i2c check: https://www.circuitbasics.com/basics-of-the-i2c-communication-protocol/
 i2c = busio.I2C(scl, sda)
-
-# here, you will more likely than not have to use a different device_address, if your vendor does not inform you of your board's device address
-# use the following adafruit link to find it: https://learn.adafruit.com/scanning-i2c-addresses/circuitpython
-# if, even with the program, no i2c addresses show up, try to reverse the position of your scl and sda pins above (I myself wired them wrong the first time)
+#i2c device addresses can be found using the link: https://learn.adafruit.com/scanning-i2c-addresses/circuitpython
+#just make sure you have your i2c pins hooked up to the board before running the program
 display_bus = displayio.I2CDisplay(i2c, device_address=0x3C)
 display = adafruit_displayio_ssd1306.SSD1306(display_bus, width=128, height=64)
 
-#make the display context (this essentially just clears out the screen)
+#make the display context
+#displayio.Group essentially sets a blank canvas for us to draw on, while display.show transfers that onto the screen
 splash = displayio.Group()
 display.show(splash)
 
-#set default settings (this sets stuff like the size of the display and the color pallette, since we have a monochrome screen we use black and white)
+#set default settings
+#Bitmap takes in the width and height of the display, as well as the bits per pixel, since we only need black and white
+#in this case, we put one bit per pixel, meaning black or white
 color_bitmap = displayio.Bitmap(128, 64, 1)
 color_palette = displayio.Palette(2)
-color_palette[0] = 0x000000  # White
+color_palette[0] = 0x000000  # Black
 color_palette[1] = 0xFFFFFF  # White
 
-# Draw the background
-# Has to be a 128x50 monochrome bmp file 
+#label color customization: textBG makes the background either black or white and textColor makes the text either black or white
+textBG = 0 
+textColor = 1
+mineFont = bitmap_font.load_font("Minecraftia-Regular-75.bdf", Bitmap)
 
-# First get an image file you like, preferably small pixel art, and crop it to fit the 128x50 size,
-# then, using the image converter program located in the project files, convert your image to bmp and clean up any faulty conversion artifacts
+# sets the list of background images, you can put in the directories for any of your own bmp images here
+bgList = ["sky.bmp"]
+bgIndex = 0
 
-#the sky.bmp file will be located within the project directory, the name can be changed to the file of your choice 
-imgFile = open("sky.bmp", "rb")
-bgImg = displayio.OnDiskBitmap(imgFile)
+#determines which "mode" the user is in, remember that each mode has a set of shortcuts you can set for it
+funcVal = 0
 
-#displays the selected image and mode on the screen on boot (mode will be covered in the next couple of lines)
-bgImgArea = displayio.TileGrid(bgImg, pixel_shader=color_palette)
-text_area = label.Label(terminalio.FONT, text="Mode: 0", color=0xFFFF00, x=0, y=60)
-
-#remember when we set the display context? There, we set a sort of canvas for the screen, now we are simply appending our images to it
-splash.append(bgImgArea)
-splash.append(text_area)
-display.refresh()
-
-# the list below provides all the  macros already written onto the board (placeholders)
-# The list itself is a matrix upon a matrix kind of:
-# basically, the larger list holds the overall content of possible actions 
-# the smaller lists within those hold the commands for each mode (essentially so that we can store as many macros as we want, since you can always change the mode you are using)
-# the smallest of lists hold the macros themselves, each macro can have up to six individual commands, every macro has to be a list with up to 6 commands (according to adafruit documentation) placed in order, to write new commands follow the model below:
-#
-#           Keycode.KEY (full uppercase)
-#
-
+#sets the shortcuts for each mode:
+#    main list -> holds all the other lists
+#    \
+#     | Mode lists -> hold the shortcuts for each mode
+#      \
+#       | Shortcut lists -> hold a list of commands that are run as shortcuts according to their indexes
 actionList = [[[Keycode.SHIFT, Keycode.B], [Keycode.SHIFT, Keycode.C], [Keycode.OPTION, Keycode.CONTROL, Keycode.RIGHT_ARROW]],[[Keycode.COMMAND, Keycode.C], [Keycode.COMMAND, Keycode.V], [Keycode.OPTION, Keycode.CONTROL, Keycode.LEFT_ARROW]]]
 
-#remember, the wiring for the buttons and leds are completely arbitrary, just try to avoid placing them in pins that allow analog communication (26, 27)
-# just more boilerplate though, DigitalInOut defines the placing within the board, Direction is INPUT/OUTPUT, pull should be UP for the buttons
+#optional led made to check if your board is recognizing button inputs without the use of the Serial Monitor
 led = digitalio.DigitalInOut(board.GP16)
 led.direction = digitalio.Direction.OUTPUT
 led.value = False
 
-#funcVal determines the "mode" you're currently in, modes, recalling, determine the list of macros available to you
-funcVal = 0
+#rotary encoder clk = a | dt = b
+encoder = rotaryio.IncrementalEncoder(board.GP21, board.GP22)
+
+#rotary encoder button
+sw = digitalio.DigitalInOut(board.GP15)
+sw.direction = digitalio.Direction.INPUT
+sw.pull = digitalio.Pull.UP
+currVol = 8
+frame = 0
+
+def loadStartScreen(isDefault):
+    #sets a new display "canvas"
+    splash = displayio.Group()
+    try:
+        #opens either a normal bg image or an animation frame, being setup for an animation feature I'm still working on
+        if isDefault == True:
+            imgFile = open(bgList[bgIndex], "rb")
+        else:
+            imgFile = open("/animation/" + str(frame) + ".bmp", "rb")
+            
+        #the code then saves that bitmap and some text on disk, before displaying it on the screen
+        bgImg = displayio.OnDiskBitmap(imgFile)
+        bgImgArea = displayio.TileGrid(bgImg, pixel_shader=color_palette)
+        text_area = label.Label(terminalio.FONT, text="Mode: " + str(funcVal), color=color_palette[textColor], padding_top=2, padding_bottom=10, padding_left=4, padding_right=100, background_color=color_palette[textBG], x=3, y=57)
+
+        splash.append(bgImgArea)
+        splash.append(text_area)
+        display.refresh()
+        display.show(splash)
+    except MemoryError: 
+        #if the board runs into an error it just blanks out and recurses onto the function to try and load the background again
+        splash = displayio.Group()
+        display.show(splash)
+        loadStartScreen(True)
+    
+#refreshes the display for animation, background and button press related text
+def refreshDisplay(dispIn, functions):
+    if dispIn == "animate":
+        loadStartScreen(False)
+    if dispIn == "default":
+        loadStartScreen(True)
+    else:
+        splash = displayio.Group()
+        display.show(splash)
+        dispIn = dispIn + "\n" + functions
+        text_area = label.Label(terminalio.FONT, text=dispIn, color=0xFFFF00, x=28, y=28)
+        splash.append(text_area)
+        display.refresh()
+    
+shouldAnimate = False
+
+async def resetDisplay():
+    if shouldAnimate == True:
+        refreshDisplay("animate", "none")
+    else:
+        refreshDisplay("default", "none")
+
+refreshDisplay("default", "none")
+
+shouldHaveBtnScreen = False
 class btn:
-    #instead of defining each button manually, which would be a nightmare, I coded a function to do most of the functions of the button for you, actionIndex defines what action the button should do in the context of actionList, functions defines the name of the actions the button can do (should be made as a list with strings for the button's functions)
+    #creates the button class, responsible for more easily being able to define buttons and pins
     def __init__(self, pin, actionIndex, functions):
         self.pin = pin
         self.button = digitalio.DigitalInOut(pin)
@@ -99,72 +149,97 @@ class btn:
             keyboard.press(i)
             print(i)
         keyboard.release_all()
-        time.sleep(0.15)
         led.value = False
+        while self.button.value is not True:
+            pass
 
-#normal buttons
+# you can define the buttons with: buttonName = btn(board.btnPin, actionIndex, ["function1", "function2"]
 btn1 = btn(board.GP17, 0, ["Type B", "Copy"])
 btn2 = btn(board.GP18, 1, ["Type C", "Paste"])
 btn3 = btn(board.GP19, 2, ["Right Half", "Left Half"])
-
-#the funcButton, changes the mode you are using
 funcButton = btn(board.GP20, -1, ["funcbtn", "funcbtn"])
 
-#the function below is the function that is used to flash images to the display depending on what you do
-def refreshDisplay(dispIn, functions):
-    #resets the display
-    splash = displayio.Group()
-    display.show(splash)
-    display.refresh()
+last_pos = -10000
 
-    #occurs if the user wants to return to the background of his/her choice
-    if dispIn == "default":
-        #places background
-        imgFile = open("sky.bmp", "rb")
-        bgImg = displayio.OnDiskBitmap(imgFile)
-        bgImgArea = displayio.TileGrid(bgImg, pixel_shader=color_palette)
+#reset sound:
+for i in range(16):
+    consumer_control.send(ConsumerControlCode.VOLUME_DECREMENT)
+for i in range(8):
+    consumer_control.send(ConsumerControlCode.VOLUME_INCREMENT)
 
-        #places text
-        text_area = label.Label(terminalio.FONT, text="Mode: " + str(funcVal), color=0xFFFF00, x=0, y=60)
-
-        splash.append(bgImgArea)
-        splash.append(text_area)
-        display.refresh()
-    else:
-        # in any other case, we simply display what button you pressed + it's function using a text label
-        dispIn = dispIn + "\n" + functions
-        text_area = label.Label(terminalio.FONT, text=dispIn, color=0xFFFF00, x=28, y=28)
-        splash.append(text_area)
-        display.refresh()
-    
-async def resetDisplay():
-    #code for, whenever the screen changes due to pressing a button, it returns to the base background
-    await asyncio.sleep(0.1)
-    refreshDisplay("default", "none")
-       
+#this variable is supposed to tell the program whether or not to reset the display at the end of a cycle if it is animating
+#essentially, whenever anything uses the screen, it resets the display at some point, however, if nothing has reset the screen this 
+#cycle we still want the animation running, so this variable exists for just that
+hasSomethingOccurred = False
 while True:
+    curr_pos = encoder.position
+    if last_pos == -10000 or last_pos != curr_pos:
+        if int(last_pos) > int(curr_pos):
+            consumer_control.send(ConsumerControlCode.VOLUME_DECREMENT)
+            currVol -= 1
+        if int(last_pos) < int(curr_pos):
+            consumer_control.send(ConsumerControlCode.VOLUME_INCREMENT)
+            currVol += 1
+        if currVol < 0:
+            currVol = 0
+        if currVol > 16:
+            currVol = 16
+        print(curr_pos)
+        hasSomethingOccurred = True
+    last_pos = curr_pos
+
+    #checking all button presses and functions, I'm thinking of changing this into something built into the class of btn
+    if sw.value is not True:
+        hasSomethingOccurred = True
+        print("pressed sw")
+        for i in range(16):
+            consumer_control.send(ConsumerControlCode.VOLUME_DECREMENT)
+        currVol = 0
+    
     if btn1.button.value is not True:
-        #the template for every press button event, first we call the pressButtons function which executes the keycode commands properly
-        #then we refresh the display with the text in the first argument, followed by the text in the second argument in the line below, before finally returning the display to its IDLE state
+        hasSomethingOccurred = True
         btn1.pressButtons()
-        refreshDisplay("btn1 pressed", btn1.functions[funcVal])
-        asyncio.run(resetDisplay())
+        if shouldHaveBtnScreen == True:
+            refreshDisplay("btn1 pressed", btn1.functions[funcVal])
+            asyncio.run(resetDisplay())
         
     if btn2.button.value is not True:
-        refreshDisplay("btn2 pressed", btn2.functions[funcVal])
+        hasSomethingOccurred = True
         btn2.pressButtons()
-        asyncio.run(resetDisplay())
+        if shouldHaveBtnScreen == True:
+            refreshDisplay("btn2 pressed", btn2.functions[funcVal])
+            asyncio.run(resetDisplay())
     
     if btn3.button.value is not True:
-        refreshDisplay("btn3 pressed", btn3.functions[funcVal])
+        hasSomethingOccurred = True
         btn3.pressButtons()
-        asyncio.run(resetDisplay())
-    
+        if shouldHaveBtnScreen == True:
+            refreshDisplay("btn3 pressed", btn3.functions[funcVal])
+            asyncio.run(resetDisplay())
+
+    #funcButton is a lot longer because it possesses a lot of unique functions of its own, and also allows for the use of shortcuts for some settings
     if funcButton.button.value is not True:
-        #special event specifically if we want to change the function mode
+        hasSomethingOccurred = True
         funcVal += 1
         if funcVal >= 2:
             funcVal = 0
         print(funcVal)
         asyncio.run(resetDisplay())
-
+        while funcButton.button.value is not True:
+            if btn3.button.value is not True:
+                bgIndex += 1
+                if bgIndex > len(bgList)-1:
+                    bgIndex = 0
+                asyncio.run(resetDisplay())
+                time.sleep(0.1)
+            if btn2.button.value is not True:
+                if textBG == 0:
+                    textBG = 1
+                    textColor = 0
+                else:
+                    textBG = 0
+                    textColor = 1
+                asyncio.run(resetDisplay())
+                time.sleep(0.1)
+    if hasSomethingOccurred == False and shouldAnimate == True:
+        asyncio.run(resetDisplay)
