@@ -37,5 +37,5 @@ actionList = [[Keycode.COMMAND, Keycode.C], [Keycode.COMMAND, Keycode.V]]
 actionList = [[Keycode.CONTROL, Keycode.C], [Keycode.CONTROL, Keycode.V]]
 
 #define btn and actionIndex in index 0
-button1 = btn(board.GP20, 0)
+button1 = btn(board.GP20, 0, ["Copy", "Paste"])
 ```
