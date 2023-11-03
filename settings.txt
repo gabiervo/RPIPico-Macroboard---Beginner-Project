@@ -1,4 +1,0 @@
-#note, the settings need to be in the order presented here, if you ever forget the order, refer to the docs
-bgIndex: 0
-txtBg: 1 (zero for white one for black)
-funcVal: 0
