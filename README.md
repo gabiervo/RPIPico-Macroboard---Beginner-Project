@@ -1,9 +1,10 @@
 # RPIPico-Macroboard---Beginner-Project
 **This is a simple macroboard made using Raspberry PI Pico and Circuitpython, with a couple of extra components to spice it up, such as:**
 - A programmable ssd1306 oled screen for displaying custom wallpapers and command names
-- Powerful default preset with support for various applications
+- Powerful default preset with support for various uses
 - Simple and customizable code (made specifically to make adding new buttons/commands relatively simple)
 - Knob control with a rotary encoder
+- Customizable aesthetic settings with txt files
 
 ## Setup
 First and foremost, we are going to need:
@@ -22,8 +23,7 @@ First and foremost, we are going to need:
 - https://circuitpython.org/libraries (download of all Circuitpython libraries, they can be found beneath the "lib" folder and need to be in the RPIs own lib folder)
 
 ## Installing and running code
-Running the code should be as simple as plugging in your components, uploading in the correct pins to the program and using it, note, however, that the shortcuts are only a preset to build upon and should be changed if you want more shortcuts.
-For this, take a look at the Keycode, Keyboard and Consumer Control libraries from adafruit for examples on how to add your own capabilities.
+Running the code should be as simple as plugging in your components, uploading the code and files in the HID folder to your CIRCUITPY drive and running it (assuming the correct pins are connected, this will be standardized if you use the PCB model)
 
 **Example:**
 ``` python3
